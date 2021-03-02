@@ -4,30 +4,26 @@ import {JWT_SECRET} from '../util/secrets'
 import jwt from 'jsonwebtoken'
 import passport from 'passport'
 import HttpException from '../exceptions/httpException'
-import {UserService} from '../services/userService'
+import {userService, UserService} from '../services/userService'
 
 export class UserController {
-    // private readonly userService: UserService
-    //
-    // constructor() {
-    //     this.userService = new UserService()
-    // }
+    private readonly userService: UserService
+
+    constructor(userService: UserService) {
+        this.userService = userService
+    }
 
     async getUser(req: Request, res: Response): Promise<void> {
         const email: string = req.body.email
 
-        const userService = new UserService()
-
-        const user: User = await userService.findUser(email)
+        const user: User = await this.userService.findUser(email)
     }
 
     async registerUser(req: Request, res: Response): Promise<void> {
         const {email, name, password} = req.body
 
         try {
-            const userService = new UserService()
-
-            const user: User = await userService.addUser(email, name, password)
+            const user: User = await this.userService.addUser(email, name, password)
 
             res.status(200).send({user: user.toAuthJSON()})
         } catch (error) {
@@ -51,5 +47,5 @@ export class UserController {
     }
 }
 
-export default new UserController()
+export default new UserController(userService)
 

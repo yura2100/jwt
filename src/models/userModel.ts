@@ -1,27 +1,51 @@
+import {Sequelize} from 'sequelize'
 const {Model, DataTypes} = require('sequelize')
-const {connection} = require('../app')
 import bcrypt from 'bcrypt'
+import {JWT_SECRET} from '../util/secrets.js'
+import jwt from 'jsonwebtoken'
 
-export interface IUser {
-    email: string
-    password: string
-    name: string
+const sequelize = new Sequelize(
+    process.env.POSTGRES_URI ?? '', {
+        define: {
+            timestamps: false
+        }
+    }
+)
 
-    isValidPassword(password: string): Promise<boolean>
-}
-
-interface UserAttributes extends IUser {
-    id: number
-}
-
-export class User extends Model<UserAttributes> implements UserAttributes {
+export class User extends Model {
     public id!: number
-    public  email!: string
+    public email!: string
     public password!: string
     public name!: string
 
-    async isValidPassword(password: string): Promise<boolean> {
+    async hashPassword(password: string) {
+        this.password = await bcrypt.hash(password, 10)
+
+        await this.save()
+    }
+
+    async validatePassword(password: string): Promise<boolean> {
         return await bcrypt.compare(password, this.password)
+    }
+
+    generateJWT(): string {
+        const today: Date = new Date()
+        const expirationDate: Date = new Date(today)
+        expirationDate.setDate(today.getDate() + 60)
+
+        return jwt.sign({
+            id: this.id,
+            email: this.email,
+            exp: Math.round(expirationDate.getTime() / 1000)
+        }, JWT_SECRET)
+    }
+
+    toAuthJSON(): {id: number, email: string, token: string} {
+        return {
+            id: this.id,
+            email: this.email,
+            token: this.generateJWT()
+        }
     }
 }
 
@@ -48,6 +72,6 @@ User.init(
     },
     {
         tableName: "users",
-        connection
+        sequelize
     }
 )

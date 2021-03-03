@@ -1,51 +1,45 @@
 import {Request, Response, NextFunction} from 'express'
 import {User} from '../models/userModel'
-import {JWT_SECRET} from '../util/secrets'
-import jwt from 'jsonwebtoken'
-import passport from 'passport'
 import HttpException from '../exceptions/httpException'
-import {userService, UserService} from '../services/userService'
+import {UserService} from '../services/userService'
 
 export class UserController {
-    private readonly userService: UserService
+    getUser(req: Request, res: Response) {
+        const {id, email, name} = req.user as User
 
-    constructor(userService: UserService) {
-        this.userService = userService
-    }
-
-    async getUser(req: Request, res: Response): Promise<void> {
-        const email: string = req.body.email
-
-        const user: User = await this.userService.findUser(email)
+        res.status(200).send({id, email, name})
     }
 
     async registerUser(req: Request, res: Response): Promise<void> {
-        const {email, name, password} = req.body
+        const userService = new UserService()
+
+        const {email, password, name} = req.body
 
         try {
-            const user: User = await this.userService.addUser(email, name, password)
+            const user: User = await userService.addUser(email, password, name)
 
-            res.status(200).send({user: user.toAuthJSON()})
+            res.status(200).send(await user.toAuthJSON())
         } catch (error) {
             throw new HttpException(401, error.message)
         }
     }
 
-    authenticateUser(req: Request, res: Response, next: NextFunction): void {
-        passport.authenticate('local', (error, user) => {
-            if (error)
-                return next(error)
+    async loginUser(req: Request, res: Response): Promise<void> {
+        const user: User = req.user as User
 
-            if (!user) {
-                throw new HttpException(401, 'unauthorized')
-            } else {
-                const token = jwt.sign(user, JWT_SECRET)
-
-                res.status(200).send({user, token})
-            }
-        })
+        res.status(200).send(await user.toAuthJSON())
     }
+
+    // async refreshUsersToken(req: Request, res: Response): Promise<void> {
+    //
+    // }
+    //
+    // async logOut(req: Request) {
+    //     const userService = new UserService()
+    //
+    //     await userService.deleteUsersRefreshToken()
+    // }
 }
 
-export default new UserController(userService)
+export default new UserController()
 

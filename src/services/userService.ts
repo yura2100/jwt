@@ -9,11 +9,21 @@ export class UserService {
         return user
     }
 
-    async findUser(email: string): Promise<User> {
+    async findUser(email: string): Promise<User | null> {
         return await User.findOne({
             where: {email}
         })
     }
+
+    // async refreshUsersToken(id: number, refreshToken: string): Promise<void> {
+    //
+    // }
+    //
+    // async deleteUsersRefreshToken(id: number): Promise<void> {
+    //     await User.update({refreshToken: null}, {
+    //         where: {id}
+    //     })
+    // }
 }
 
 export const userService =  new UserService()

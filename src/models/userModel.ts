@@ -1,22 +1,14 @@
-import {Sequelize} from 'sequelize'
-const {Model, DataTypes} = require('sequelize')
+import {Model, DataTypes} from 'sequelize'
 import bcrypt from 'bcrypt'
-import {JWT_SECRET} from '../util/secrets.js'
-import jwt from 'jsonwebtoken'
-
-const sequelize = new Sequelize(
-    process.env.POSTGRES_URI ?? '', {
-        define: {
-            timestamps: false
-        }
-    }
-)
+import {sequelize} from '../config/database'
+import {generateAccessToken, generateRefreshToken} from '../services/cryptoService'
 
 export class User extends Model {
     public id!: number
     public email!: string
     public password!: string
     public name!: string
+    public refreshToken!: string | null
 
     async hashPassword(password: string) {
         this.password = await bcrypt.hash(password, 10)
@@ -28,23 +20,23 @@ export class User extends Model {
         return await bcrypt.compare(password, this.password)
     }
 
-    generateJWT(): string {
-        const today: Date = new Date()
-        const expirationDate: Date = new Date(today)
-        expirationDate.setDate(today.getDate() + 60)
+    async setRefreshToken(token: string): Promise<void> {
+        this.refreshToken = token
 
-        return jwt.sign({
-            id: this.id,
-            email: this.email,
-            exp: Math.round(expirationDate.getTime() / 1000)
-        }, JWT_SECRET)
+        await this.save()
     }
 
-    toAuthJSON(): {id: number, email: string, token: string} {
+    async toAuthJSON(): Promise<{ id: number, email: string, accessToken: string, refreshToken: string }> {
+        const accessToken = generateAccessToken(this)
+        const refreshToken = await generateRefreshToken()
+
+        await this.setRefreshToken(refreshToken)
+
         return {
             id: this.id,
             email: this.email,
-            token: this.generateJWT()
+            accessToken,
+            refreshToken
         }
     }
 }
@@ -57,18 +49,21 @@ User.init(
             primaryKey: true,
         },
         email: {
-            type: new DataTypes.STRING,
+            type: DataTypes.STRING,
             unique: true,
             allowNull: false,
         },
         password: {
-            type: new DataTypes.STRING,
+            type: DataTypes.STRING,
             allowNull: false,
         },
         name: {
-            type: new DataTypes.STRING,
+            type: DataTypes.STRING,
             allowNull: false,
         },
+        refreshToken: {
+            type: DataTypes.STRING
+        }
     },
     {
         tableName: "users",

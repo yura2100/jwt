@@ -1,4 +1,5 @@
-require('dotenv').config({path: __dirname + '/.env'})
+require('dotenv').config()
+import './config/passport'
 
 const {app} = require('./app.js')
 

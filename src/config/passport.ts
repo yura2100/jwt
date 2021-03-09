@@ -18,12 +18,13 @@ passport.use(new LocalStrategy(
     async (email, password, done) => {
         try {
             const userService: UserService = new UserService()
-            const user: User | null = await userService.findUser(email)
+            const user: User | null = await userService.getOneByEmail(email)
 
-            if (!user)
+            if (!user) {
                 return done(null, false, {message: 'Invalid email'})
+            }
 
-            const checkPassword = await user.validatePassword(password)
+            const checkPassword = await userService.validatePassword(user, password)
 
             if (checkPassword)
                 return done(null, user)
@@ -40,20 +41,7 @@ passport.use(new JwtStrategy(
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
     secretOrKey: JWT_SECRET
     },
-    async (jwtToken, done) => {
-        try {
-            const userService: UserService = new UserService()
-            const user: User | null = await userService.findUser(jwtToken.email)
-
-            if (user)
-                return done(null, user, jwtToken)
-            else
-                return done(null, false)
-
-        } catch (error) {
-            return done(error)
-        }
-    })
+    (jwtToken, done) => done(null, jwtToken.id))
 )
 
 export default passport

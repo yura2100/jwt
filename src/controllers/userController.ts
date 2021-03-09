@@ -1,45 +1,65 @@
 import {Request, Response, NextFunction} from 'express'
 import {User} from '../models/userModel'
 import HttpException from '../exceptions/httpException'
-import {UserService} from '../services/userService'
+import {userService, UserService} from '../services/userService'
 
 export class UserController {
-    getUser(req: Request, res: Response) {
-        const {id, email, name} = req.user as User
+    constructor(private userService: UserService) {}
 
-        res.status(200).send({id, email, name})
+    async getOne(req: Request, res: Response) {
+        const id = Number(req.body.id)
+
+        const user = await this.userService.getOne(id) as User
+
+        res.status(200).send(user.toJSON())
     }
 
-    async registerUser(req: Request, res: Response): Promise<void> {
-        const userService = new UserService()
 
+    async register(req: Request, res: Response, next: NextFunction) {
         const {email, password, name} = req.body
 
         try {
-            const user: User = await userService.addUser(email, password, name)
+            const user = await this.userService.create(email, password, name)
 
-            res.status(200).send(await user.toAuthJSON())
+            const authJSON = await this.userService.generateAuthJSON(user)
+            await this.userService.setRefreshToken(user, authJSON.refreshToken)
+
+            res.status(200).send(authJSON)
         } catch (error) {
-            throw new HttpException(401, error.message)
+            next(new HttpException(401, error.message))
         }
     }
 
-    async loginUser(req: Request, res: Response): Promise<void> {
+    async login(req: Request, res: Response) {
         const user: User = req.user as User
 
-        res.status(200).send(await user.toAuthJSON())
+        const authJSON = await this.userService.generateAuthJSON(user)
+        await this.userService.setRefreshToken(user, authJSON.refreshToken)
+
+        res.status(200).send(authJSON)
     }
 
-    // async refreshUsersToken(req: Request, res: Response): Promise<void> {
-    //
-    // }
-    //
-    // async logOut(req: Request) {
-    //     const userService = new UserService()
-    //
-    //     await userService.deleteUsersRefreshToken()
-    // }
+    async refreshJWT(req: Request, res: Response, next: NextFunction) {
+        try {
+            const {id, refreshToken} = req.body
+
+            const authJSON = await this.userService.refreshJWT(id, refreshToken)
+
+            res.status(200).send(authJSON)
+        } catch (error) {
+            next(new HttpException(401, 'Id or refreshToken is incorrect'))
+        }
+    }
+
+    async logout(req: Request, res: Response) {
+        const id = req.body.id
+
+        const user = await this.userService.getOne(id) as User
+        await this.userService.setRefreshToken(user, null)
+
+        res.status(200).send('Successful logout')
+    }
 }
 
-export default new UserController()
+export default new UserController(userService)
 

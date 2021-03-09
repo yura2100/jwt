@@ -1,11 +1,13 @@
 import {Router} from 'express'
 import userController from '../controllers/userController'
-import {authenticate} from "../controllers/authController";
+import {authenticateJWT, authenticateLocal} from "../controllers/authController";
 
 const router = Router()
 
-router.post('/get', authenticate('jwt'), userController.getUser)
-router.post('/register', userController.registerUser)
-router.post('/login', authenticate('local'), userController.loginUser)
+router.get('/', authenticateJWT(), userController.getOne.bind(userController))
+router.post('/register', userController.register.bind(userController))
+router.post('/login', authenticateLocal(), userController.login.bind(userController))
+router.post('/refresh', userController.refreshJWT.bind(userController))
+router.get('/logout', authenticateJWT(), userController.logout.bind(userController))
 
 export default router

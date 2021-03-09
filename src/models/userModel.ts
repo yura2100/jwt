@@ -1,7 +1,5 @@
 import {Model, DataTypes} from 'sequelize'
-import bcrypt from 'bcrypt'
 import {sequelize} from '../config/database'
-import {generateAccessToken, generateRefreshToken} from '../services/cryptoService'
 
 export class User extends Model {
     public id!: number
@@ -10,33 +8,11 @@ export class User extends Model {
     public name!: string
     public refreshToken!: string | null
 
-    async hashPassword(password: string) {
-        this.password = await bcrypt.hash(password, 10)
-
-        await this.save()
-    }
-
-    async validatePassword(password: string): Promise<boolean> {
-        return await bcrypt.compare(password, this.password)
-    }
-
-    async setRefreshToken(token: string): Promise<void> {
-        this.refreshToken = token
-
-        await this.save()
-    }
-
-    async toAuthJSON(): Promise<{ id: number, email: string, accessToken: string, refreshToken: string }> {
-        const accessToken = generateAccessToken(this)
-        const refreshToken = await generateRefreshToken()
-
-        await this.setRefreshToken(refreshToken)
-
+    toJSON() {
         return {
             id: this.id,
             email: this.email,
-            accessToken,
-            refreshToken
+            name: this.name
         }
     }
 }
@@ -66,7 +42,7 @@ User.init(
         }
     },
     {
-        tableName: "users",
+        tableName: 'users',
         sequelize
     }
 )
